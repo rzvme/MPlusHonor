@@ -1,0 +1,9 @@
+package-as: MPlusHonor
+
+ignore:
+  - .github
+  - .git
+  - .gitignore
+  - README.md
+  - .pkgmeta
+  - metadata.json

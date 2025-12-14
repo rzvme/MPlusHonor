@@ -4,6 +4,8 @@
 ## Author: Kaelagon
 ## Version: @project-version@
 ## SavedVariables: MPlusHonorDB
+## X-Curse-Project-ID: 1368801
+
 
 Data.lua
 Core.lua
