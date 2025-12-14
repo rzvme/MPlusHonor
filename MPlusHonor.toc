@@ -1,0 +1,10 @@
+## Interface: 110100
+## Title: MPlusHonor
+## Notes: Rate your Mythic+ group members after dungeon completion
+## Author: Kaelagon
+## Version: @project-version@
+## SavedVariables: MPlusHonorDB
+
+Data.lua
+Core.lua
+UI.lua
