@@ -8,29 +8,43 @@ on:
       - 'Data.lua'
   workflow_dispatch:  # Manual trigger option
 
-jobs:
-  release:
-    runs-on: ubuntu-latest
+# jobs:
+#   release:
+#     runs-on: ubuntu-latest
     
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Need full history for packager
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0  # Need full history for packager
       
-      - name: Package and Upload
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -p ${{ secrets.CF_API_TOKEN }}
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
+#       - name: Package and Upload
+#         uses: BigWigsMods/packager@v2
+#         with:
+#           args: -p ${{ secrets.CF_API_TOKEN }}
+#         env:
+#           CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
 
-      - name: "Set ENV Variable: Upload to CurseForge"
-        if: ${{ env.uploadCurseForge != 'false' }}
-        run: |
-          echo bigWigsUploads=" -p 1368801 ">> $GITHUB_ENV
-          echo CF_API_KEY="${{ secrets.CF_API_KEY }}" >> $GITHUB_ENV
+#       - name: "Set ENV Variable: Upload to CurseForge"
+#         if: ${{ env.uploadCurseForge != 'false' }}
+#         run: |
+#           echo bigWigsUploads=" -p 1368801 ">> $GITHUB_ENV
+#           echo CF_API_KEY="${{ secrets.CF_API_KEY }}" >> $GITHUB_ENV
+
+#       - uses: BigWigsMods/packager@v2
+#         with:
+#           args: -r ${releaseDir} ${bigWigsUploads} ${packagerOptions}
+
+
+env:
+  CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
+
+jobs:
+  release: # "release" is a job, you can name it anything you want
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # reads history for commit changelog
 
       - uses: BigWigsMods/packager@v2
-        with:
-          args: -r ${releaseDir} ${bigWigsUploads} ${packagerOptions}
