@@ -1,4 +1,4 @@
-## Interface: 110207, 120000
+## Interface: 110205
 ## Title: MPlusHonor
 ## Notes: Rate your Mythic+ group members after dungeon completion
 ## Author: Kaelagon
