@@ -17,19 +17,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Need full history for packager
-      
-      - name: Package and Upload
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -p ${{ secrets.CF_API_TOKEN }}
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
 
       - name: "Set ENV Variable: Upload to CurseForge"
         if: ${{ env.uploadCurseForge != 'false' }}
         run: |
           echo CF_API_KEY="${{ secrets.CF_API_KEY }}" >> $GITHUB_ENV
 
-      - uses: BigWigsMods/packager@v2
+      - name: Package and Upload to curseforge
+        uses: BigWigsMods/packager@v2
+        
 
 
