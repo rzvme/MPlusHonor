@@ -28,10 +28,8 @@ jobs:
       - name: "Set ENV Variable: Upload to CurseForge"
         if: ${{ env.uploadCurseForge != 'false' }}
         run: |
-          echo bigWigsUploads=" -p 1368801 ">> $GITHUB_ENV
           echo CF_API_KEY="${{ secrets.CF_API_KEY }}" >> $GITHUB_ENV
 
       - uses: BigWigsMods/packager@v2
-        with:
-          args: ${bigWigsUploads}
+
 
