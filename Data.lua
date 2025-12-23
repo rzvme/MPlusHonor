@@ -3,7 +3,7 @@
 -- Last Update: 2025-12-22 02:00:00 UTC
 
 MythicPlusHonorData = {
-    version = "1.0.3",
+    version = "1.0.3.0",
     lastUpdate = 1766368800,
     dataDate = "2025-12-22",
     totalPlayers = 375,
