@@ -1,11 +1,11 @@
 -- Mythic+ Honor Rating Database
 -- This file is auto-generated daily from the database
--- Last Update: 2025-12-20 02:00:00 UTC
+-- Last Update: 2025-12-22 02:00:00 UTC
 
 MythicPlusHonorData = {
     version = "1.0.3",
-    lastUpdate = 1766196000,
-    dataDate = "2025-12-20",
+    lastUpdate = 1766368800,
+    dataDate = "2025-12-22",
     totalPlayers = 375,
     totalRatings = 537,
     
