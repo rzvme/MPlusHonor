@@ -132,6 +132,67 @@ function MPH.UI:ShowRatingWindow(runData)
     frame:Show()
 end
 
+-- Helper function to add rating info to tooltip
+local function AddRatingToTooltip(tooltip, name, realm)
+    if not name then return end
+    
+    realm = realm or GetRealmName()
+    if realm then
+        realm = realm:gsub("%s+", "")
+    end
+    
+    local fullName = name .. "-" .. (realm or "NoRealm")
+    
+    if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+        print("|cffff9900MPH Tooltip:|r Looking for:", fullName)
+    end
+    
+    local ratingData = MPH:GetCharacterRating(name, realm)
+    
+    if ratingData then
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+            print("|cff00ff00MPH Tooltip:|r FOUND rating data! Adding lines...")
+        end
+        
+        -- Add blank line
+        GameTooltip_AddBlankLineToTooltip(tooltip)
+        
+        -- Add header
+        tooltip:AddLine("M+ Honor Rating", 0.25, 0.78, 0.92, true)
+        
+        if ratingData.averageRating and ratingData.totalRatings > 0 then
+            local stars = string.rep("*", math.floor(ratingData.averageRating))
+            tooltip:AddDoubleLine(
+                "Rating:", 
+                string.format("%.1f/5.0 %s", ratingData.averageRating, stars),
+                1, 1, 1,
+                1, 0.82, 0
+            )
+            tooltip:AddDoubleLine(
+                "Based on:",
+                string.format("%d ratings", ratingData.totalRatings),
+                1, 1, 1,
+                0.7, 0.7, 0.7
+            )
+        else
+            tooltip:AddLine("No ratings yet", 0.7, 0.7, 0.7)
+        end
+        
+        tooltip:AddLine("Visit mplushonor.guildhub.eu", 0.5, 0.5, 0.5, true)
+        
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+            print("|cff00ff00MPH Tooltip:|r Lines added successfully!")
+        end
+        
+        return true
+    else
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+            print("|cffff0000MPH Tooltip:|r No rating found")
+        end
+        return false
+    end
+end
+
 -- Create character rating display (for tooltip integration)
 function MPH.UI:CreateCharacterRatingTooltip()
     -- Use TooltipDataProcessor for modern WoW (11.0+)
@@ -158,63 +219,8 @@ function MPH.UI:CreateCharacterRatingTooltip()
             if not UnitIsPlayer(unitToken) then return end
             
             local name, realm = UnitFullName(unitToken)
-            if not name then return end
-            
-            realm = realm or GetRealmName()
-            if realm then
-                realm = realm:gsub("%s+", "")
-            end
-            
-            local fullName = name .. "-" .. (realm or "NoRealm")
-            
-            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                print("|cffff9900MPH Tooltip:|r Looking for:", fullName)
-            end
-            
-            local ratingData = MPH:GetCharacterRating(name, realm)
-            
-            if ratingData then
-                if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                    print("|cff00ff00MPH Tooltip:|r FOUND rating data! Adding lines...")
-                end
-                
-                -- Add blank line
-                tooltip:AddLine(" ")
-                
-                -- Add header
-                tooltip:AddLine("M+ Honor Rating", 0.25, 0.78, 0.92, true)
-                
-                if ratingData.averageRating and ratingData.totalRatings > 0 then
-                    local stars = string.rep("*", math.floor(ratingData.averageRating))
-                    tooltip:AddDoubleLine(
-                        "Rating:", 
-                        string.format("%.1f/5.0 %s", ratingData.averageRating, stars),
-                        1, 1, 1,
-                        1, 0.82, 0
-                    )
-                    tooltip:AddDoubleLine(
-                        "Based on:",
-                        string.format("%d ratings", ratingData.totalRatings),
-                        1, 1, 1,
-                        0.7, 0.7, 0.7
-                    )
-                else
-                    tooltip:AddLine("No ratings yet", 0.7, 0.7, 0.7)
-                end
-                
-                tooltip:AddLine("Visit mplushonor.guildhub.eu", 0.5, 0.5, 0.5, true)
-                
-                -- Force tooltip to update
-                tooltip:Show()
-                
-                if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                    print("|cff00ff00MPH Tooltip:|r Lines added successfully!")
-                end
-            else
-                if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                    print("|cffff0000MPH Tooltip:|r No rating found")
-                end
-            end
+            -- Simply add the rating info - no need to force refresh in PostCall
+            AddRatingToTooltip(tooltip, name, realm)
         end)
         
         print("|cff00ff00MPlusHonor:|r Tooltip processor registered!")
@@ -233,40 +239,7 @@ function MPH.UI:CreateCharacterRatingTooltip()
             if not UnitIsPlayer(unit) then return end
             
             local name, realm = UnitFullName(unit)
-            if not name then return end
-            
-            realm = realm or GetRealmName()
-            if realm then
-                realm = realm:gsub("%s+", "")
-            end
-            
-            local fullName = name .. "-" .. (realm or "NoRealm")
-            
-            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                print("|cffff9900MPH Tooltip:|r Looking for:", fullName)
-            end
-            
-            local ratingData = MPH:GetCharacterRating(name, realm)
-            
-            if ratingData then
-                if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
-                    print("|cff00ff00MPH Tooltip:|r FOUND rating data!")
-                end
-                
-                tooltip:AddLine(" ")
-                tooltip:AddLine("M+ Honor Rating", 0.25, 0.78, 0.92)
-                
-                if ratingData.averageRating and ratingData.totalRatings > 0 then
-                    local stars = string.rep("*", math.floor(ratingData.averageRating))
-                    tooltip:AddLine(string.format("Rating: %.1f/5.0 %s", ratingData.averageRating, stars), 1, 1, 1)
-                    tooltip:AddLine(string.format("Based on: %d ratings", ratingData.totalRatings), 0.7, 0.7, 0.7)
-                else
-                    tooltip:AddLine("No ratings yet", 0.7, 0.7, 0.7)
-                end
-                
-                tooltip:AddLine("Visit mplushonor.guildhub.eu", 0.5, 0.5, 0.5)
-                tooltip:Show()
-            end
+            AddRatingToTooltip(tooltip, name, realm)
         end)
         
         print("|cff00ff00MPlusHonor:|r Legacy tooltip hook installed!")

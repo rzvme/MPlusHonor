@@ -2,7 +2,7 @@
 ## Title: MPlusHonor
 ## Notes: Rate your Mythic+ group members after dungeon completion
 ## Author: Kaelagon
-## Version: @project-version@
+## Version: 1.0.20260113.0000
 ## SavedVariables: MPlusHonorDB
 ## X-Curse-Project-ID: 1368801
 ## X-CurseForge: https://www.curseforge.com/wow/addons/mplushonor

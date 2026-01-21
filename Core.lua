@@ -158,6 +158,21 @@ end
 
 -- Capture dungeon info when challenge starts (before completion)
 function MPH:CaptureActiveDungeonInfo()
+    DebugPrint("CaptureActiveDungeonInfo called")
+    
+    -- Check if required APIs exist
+    if not C_ChallengeMode.GetActiveChallengeMapID then
+        print("|cffff0000MPlusHonor:|r GetActiveChallengeMapID API not available in this version")
+        DebugPrint("CRITICAL: GetActiveChallengeMapID does not exist")
+        return
+    end
+    
+    if not C_ChallengeMode.GetActiveKeystoneInfo then
+        print("|cffff0000MPlusHonor:|r GetActiveKeystoneInfo API not available in this version")
+        DebugPrint("CRITICAL: GetActiveKeystoneInfo does not exist")
+        return
+    end
+    
     local mapID = C_ChallengeMode.GetActiveChallengeMapID()
     
     if not mapID then
@@ -175,6 +190,8 @@ function MPH:CaptureActiveDungeonInfo()
         return
     end
     
+    DebugPrint("Got level:", level, "from GetActiveKeystoneInfo")
+    
     -- Get affix IDs
     local affixIDs = {}
     if affixes then
@@ -186,6 +203,7 @@ function MPH:CaptureActiveDungeonInfo()
     
     -- Store members at start too, in case group changes
     local startMembers = self:GetGroupMembers()
+    DebugPrint("Captured", #startMembers, "members at dungeon start")
     
     self.activeDungeonInfo = {
         mapID = mapID,
@@ -199,7 +217,7 @@ function MPH:CaptureActiveDungeonInfo()
     
     self.challengeActive = true
     
-    DebugPrint("Dungeon info captured:", self.activeDungeonInfo.name, "Level:", self.activeDungeonInfo.level)
+    DebugPrint("Dungeon info captured successfully:", self.activeDungeonInfo.name, "Level:", self.activeDungeonInfo.level)
 end
 
 -- Create encoded payload
@@ -263,36 +281,107 @@ function MPH:CreatePayload(dungeonInfo, members, timestamp, wasInTime)
 end
 
 -- Handle dungeon completion
+
+-- Handle dungeon completion
 function MPH:OnDungeonComplete(isEarlyExit)
     DebugPrint("OnDungeonComplete triggered - Early exit:", tostring(isEarlyExit))
     
-    -- Get completion info first (this works for actual completions)
-    local completionMapID, completionLevel, completionTime, onTime, keystoneUpgradeLevels = C_ChallengeMode.GetCompletionInfo()
+    -- MIDNIGHT FIX: Try multiple methods to get dungeon info
+    local completionMapID, completionLevel, completionTime, onTime, keystoneUpgradeLevels
     
-    DebugPrint("GetCompletionInfo returned - MapID:", completionMapID, "Level:", completionLevel, "OnTime:", onTime)
+    -- Method 1: Try GetCompletionInfo (may not exist in Midnight)
+    if C_ChallengeMode.GetCompletionInfo then
+        local success, mapID, level, time, onTimeBool, upgrades = pcall(C_ChallengeMode.GetCompletionInfo)
+        if success then
+            completionMapID = mapID
+            completionLevel = level
+            completionTime = time
+            onTime = onTimeBool
+            keystoneUpgradeLevels = upgrades
+            DebugPrint("GetCompletionInfo returned - MapID:", tostring(completionMapID), "Level:", tostring(completionLevel), "OnTime:", tostring(onTime))
+        else
+            DebugPrint("ERROR calling GetCompletionInfo:", tostring(mapID))
+        end
+    else
+        DebugPrint("GetCompletionInfo API does NOT exist in this version - using fallback methods")
+    end
+    
+    -- Method 2: Try GetActiveChallengeMapID if completion info failed
+    if not completionMapID or completionMapID == 0 then
+        if C_ChallengeMode.GetActiveChallengeMapID then
+            completionMapID = C_ChallengeMode.GetActiveChallengeMapID()
+            DebugPrint("Fallback: GetActiveChallengeMapID returned:", tostring(completionMapID))
+        else
+            DebugPrint("GetActiveChallengeMapID API does NOT exist")
+        end
+    end
+    
+    -- Method 3: Try GetActiveKeystoneInfo for level if needed
+    if not completionLevel or completionLevel == 0 then
+        if C_ChallengeMode.GetActiveKeystoneInfo then
+            local level, affixes = C_ChallengeMode.GetActiveKeystoneInfo()
+            completionLevel = level
+            DebugPrint("Fallback: GetActiveKeystoneInfo returned level:", tostring(level))
+        else
+            DebugPrint("GetActiveKeystoneInfo API does NOT exist")
+        end
+    end
     
     -- Use stored dungeon info if we have it from CHALLENGE_MODE_START
     local dungeonInfo = self.activeDungeonInfo
     
-    -- If no stored info and completion info is available, try to build minimal info
-    if not dungeonInfo and completionMapID and completionMapID > 0 then
-        DebugPrint("No stored dungeon info, building from completion info")
-        local name = C_ChallengeMode.GetMapUIInfo(completionMapID)
-        dungeonInfo = {
-            mapID = completionMapID,
-            name = name or ("Dungeon " .. completionMapID),
-            level = completionLevel,
-            affixes = {}, -- We won't have affixes if we didn't capture on start
-            startMembers = nil
-        }
+    DebugPrint("Stored activeDungeonInfo:", tostring(dungeonInfo ~= nil))
+    if dungeonInfo then
+        DebugPrint("  - Stored MapID:", tostring(dungeonInfo.mapID))
+        DebugPrint("  - Stored Level:", tostring(dungeonInfo.level))
+        DebugPrint("  - Stored Name:", tostring(dungeonInfo.name))
+    end
+    
+    -- MIDNIGHT FIX: If no stored info, try harder to build it from available APIs
+    if not dungeonInfo then
+        DebugPrint("No stored dungeon info, attempting to build from available APIs")
+        
+        -- Try to get map ID from any available source
+        local mapID = completionMapID
+        if not mapID or mapID == 0 then
+            mapID = C_ChallengeMode.GetActiveChallengeMapID()
+        end
+        
+        -- Try to get level from any available source
+        local level = completionLevel
+        if not level or level == 0 then
+            local activeLevel, activeAffixes = C_ChallengeMode.GetActiveKeystoneInfo()
+            level = activeLevel
+        end
+        
+        -- If we have both mapID and level, build minimal dungeon info
+        if mapID and mapID > 0 and level and level > 0 then
+            DebugPrint("Building minimal dungeon info - MapID:", mapID, "Level:", level)
+            local name = C_ChallengeMode.GetMapUIInfo(mapID)
+            dungeonInfo = {
+                mapID = mapID,
+                name = name or ("Dungeon " .. mapID),
+                level = level,
+                affixes = {}, -- We won't have affixes if we didn't capture on start
+                startMembers = nil
+            }
+        else
+            DebugPrint("Failed to get valid mapID or level - MapID:", tostring(mapID), "Level:", tostring(level))
+        end
     end
     
     -- If still no dungeon info, we can't proceed
     if not dungeonInfo then
         print("|cffff0000MPlusHonor:|r Could not retrieve dungeon information.")
-        DebugPrint("Failed to get dungeon info - no stored info and no completion info")
+        print("|cffff0000MPlusHonor:|r Please enable debug mode (/mph debugmode) and report the issue.")
+        DebugPrint("CRITICAL: Failed to get dungeon info - no stored info and no valid completion/active info")
+        DebugPrint("  completionMapID:", tostring(completionMapID))
+        DebugPrint("  completionLevel:", tostring(completionLevel))
+        DebugPrint("  activeDungeonInfo:", tostring(self.activeDungeonInfo))
         return
     end
+    
+    DebugPrint("Dungeon info acquired:", dungeonInfo.name, "MapID:", dungeonInfo.mapID, "Level:", dungeonInfo.level)
     
     -- Get current members (or use start members if early exit)
     local members
@@ -300,16 +389,20 @@ function MPH:OnDungeonComplete(isEarlyExit)
         DebugPrint("Using stored members from dungeon start")
         members = dungeonInfo.startMembers
     else
+        DebugPrint("Getting current group members")
         members = self:GetGroupMembers()
     end
     
+    DebugPrint("Retrieved", #members, "members")
+    
     -- Need at least 2 players (self + 1 other)
     if #members < 2 then
-        DebugPrint("Not enough players:", #members)
+        print("|cffff0000MPlusHonor:|r Not enough group members to generate rating URL (need at least 2)")
+        DebugPrint("EARLY EXIT: Not enough players:", #members)
         return
     end
     
-    -- Use completion info for final results if available
+    -- Use completion info for final results if available and valid
     local finalMapID = (completionMapID and completionMapID > 0) and completionMapID or dungeonInfo.mapID
     local finalLevel = (completionLevel and completionLevel > 0) and completionLevel or dungeonInfo.level
     
@@ -324,22 +417,40 @@ function MPH:OnDungeonComplete(isEarlyExit)
     
     DebugPrint("Final values - MapID:", finalMapID, "Level:", finalLevel, "OnTime:", finalOnTime)
     
+    -- Validate final values before proceeding
+    if not finalMapID or finalMapID == 0 or not finalLevel or finalLevel == 0 then
+        print("|cffff0000MPlusHonor:|r Invalid dungeon data - cannot generate URL")
+        DebugPrint("EARLY EXIT: Invalid final values")
+        DebugPrint("  finalMapID:", tostring(finalMapID))
+        DebugPrint("  finalLevel:", tostring(finalLevel))
+        DebugPrint("  completionMapID:", tostring(completionMapID))
+        DebugPrint("  completionLevel:", tostring(completionLevel))
+        DebugPrint("  dungeonInfo.mapID:", tostring(dungeonInfo.mapID))
+        DebugPrint("  dungeonInfo.level:", tostring(dungeonInfo.level))
+        return
+    end
+    
     local timestamp = time()
+    
+    DebugPrint("Validation passed - proceeding to create payload")
     
     -- Update dungeonInfo with final values
     dungeonInfo.mapID = finalMapID
     dungeonInfo.level = finalLevel
     
     -- Create the payload
+    DebugPrint("Creating payload...")
     local payload = self:CreatePayload(dungeonInfo, members, timestamp, finalOnTime)
     
     -- Encode the payload
+    DebugPrint("Encoding payload...")
     local encodedPayload = urlSafeBase64Encode(payload)
     
     -- Generate the obfuscated URL
     local url = self.Config.baseURL .. encodedPayload
     
     DebugPrint("Generated URL length:", #url)
+    DebugPrint("URL:", url)
     
     -- Store the run
     local runData = {
@@ -359,6 +470,8 @@ function MPH:OnDungeonComplete(isEarlyExit)
     while #MPlusHonorDB.completedRuns > 50 do
         table.remove(MPlusHonorDB.completedRuns, 1)
     end
+    
+    DebugPrint("Successfully created rating session - showing UI")
     
     -- Show the URL to the user
     if MPlusHonorDB.settings.autoShow then
@@ -382,11 +495,11 @@ function MPH:OnDungeonComplete(isEarlyExit)
         end
     end
     
-    DebugPrint("Successfully created rating session")
-    
     -- Clear the stored dungeon info after successful completion
     self.activeDungeonInfo = nil
     self.challengeActive = false
+    
+    DebugPrint("OnDungeonComplete finished successfully")
 end
 
 -- Check if player left dungeon (called on zone change)
@@ -424,8 +537,8 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         MPH:CaptureActiveDungeonInfo()
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         DebugPrint("CHALLENGE_MODE_COMPLETED event fired")
-        -- Reduced wait time since we already have the info stored
-        C_Timer.After(1, function()
+        -- MIDNIGHT FIX: Reduced wait time and better handling
+        C_Timer.After(0.5, function()
             MPH:OnDungeonComplete(false) -- false = normal completion
         end)
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -512,6 +625,7 @@ end
 
 -- Print confirmation that slash commands are registered
 DebugPrint("Slash commands registered: /mph and /mplushonor")
+
 -- Add test command for checking ratings
 SLASH_MPHTESTRATING1 = "/mphtest"
 SlashCmdList["MPHTESTRATING"] = function(msg)
