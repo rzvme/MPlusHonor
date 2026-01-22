@@ -143,14 +143,14 @@ local function AddRatingToTooltip(tooltip, name, realm)
     
     local fullName = name .. "-" .. (realm or "NoRealm")
     
-    if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+    if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
         print("|cffff9900MPH Tooltip:|r Looking for:", fullName)
     end
     
     local ratingData = MPH:GetCharacterRating(name, realm)
     
     if ratingData then
-        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
             print("|cff00ff00MPH Tooltip:|r FOUND rating data! Adding lines...")
         end
         
@@ -180,13 +180,13 @@ local function AddRatingToTooltip(tooltip, name, realm)
         
         tooltip:AddLine("Visit mplushonor.guildhub.eu", 0.5, 0.5, 0.5, true)
         
-        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
             print("|cff00ff00MPH Tooltip:|r Lines added successfully!")
         end
         
         return true
     else
-        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+        if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
             print("|cffff0000MPH Tooltip:|r No rating found")
         end
         return false
@@ -200,7 +200,7 @@ function MPH.UI:CreateCharacterRatingTooltip()
         print("|cff00ff00MPlusHonor:|r Using TooltipDataProcessor (modern API)")
         
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
-            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
                 print("|cffff9900MPH Tooltip:|r TooltipDataProcessor fired")
             end
             
@@ -230,7 +230,7 @@ function MPH.UI:CreateCharacterRatingTooltip()
         print("|cff00ff00MPlusHonor:|r Using legacy tooltip hook")
         
         GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip)
-            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debug then
+            if MPlusHonorDB and MPlusHonorDB.settings and MPlusHonorDB.settings.debugTooltips then
                 print("|cffff9900MPH Tooltip:|r Legacy hook fired")
             end
             

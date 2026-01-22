@@ -49,7 +49,8 @@ function MPH:Initialize()
                 autoShow = true,
                 showInChat = true,
                 announceInParty = true,
-                debug = false
+                debug = false,
+                debugTooltips = false  -- Separate debug flag for tooltips
             }
         }
     end
@@ -57,6 +58,10 @@ function MPH:Initialize()
     -- Add new setting if it doesn't exist (for existing users)
     if MPlusHonorDB.settings.announceInParty == nil then
         MPlusHonorDB.settings.announceInParty = true
+    end
+    
+    if MPlusHonorDB.settings.debugTooltips == nil then
+        MPlusHonorDB.settings.debugTooltips = false
     end
     
     print("|cff00ff00MPlusHonor|r loaded! Version 1.0.3")
@@ -218,6 +223,8 @@ function MPH:CaptureActiveDungeonInfo()
     self.challengeActive = true
     
     DebugPrint("Dungeon info captured successfully:", self.activeDungeonInfo.name, "Level:", self.activeDungeonInfo.level)
+    DebugPrint("Time limit for this dungeon:", timeLimit, "seconds (", math.floor(timeLimit/60), "minutes )")
+    DebugPrint("Start time recorded:", self.activeDungeonInfo.startTime)
 end
 
 -- Create encoded payload
@@ -306,6 +313,14 @@ function MPH:OnDungeonComplete(isEarlyExit)
         DebugPrint("GetCompletionInfo API does NOT exist in this version - using fallback methods")
     end
     
+    -- We no longer need to explore timing - it's calculated in CHALLENGE_MODE_COMPLETED event
+    -- Just use the stored wasInTime value
+    if onTime == nil then
+        DebugPrint("onTime is nil, will use stored wasInTime from activeDungeonInfo")
+    else
+        DebugPrint("onTime from GetCompletionInfo:", tostring(onTime))
+    end
+    
     -- Method 2: Try GetActiveChallengeMapID if completion info failed
     if not completionMapID or completionMapID == 0 then
         if C_ChallengeMode.GetActiveChallengeMapID then
@@ -335,6 +350,13 @@ function MPH:OnDungeonComplete(isEarlyExit)
         DebugPrint("  - Stored MapID:", tostring(dungeonInfo.mapID))
         DebugPrint("  - Stored Level:", tostring(dungeonInfo.level))
         DebugPrint("  - Stored Name:", tostring(dungeonInfo.name))
+        DebugPrint("  - Stored wasInTime:", tostring(dungeonInfo.wasInTime))
+        
+        -- Use the timing status we captured immediately after completion
+        if dungeonInfo.wasInTime ~= nil then
+            onTime = dungeonInfo.wasInTime
+            DebugPrint("Using stored wasInTime value:", tostring(onTime))
+        end
     end
     
     -- MIDNIGHT FIX: If no stored info, try harder to build it from available APIs
@@ -412,7 +434,9 @@ function MPH:OnDungeonComplete(isEarlyExit)
         finalOnTime = false
         DebugPrint("Early exit detected - marking as not timed")
     else
-        finalOnTime = onTime or false
+        -- Use whatever timing info we got, default to false if unknown
+        finalOnTime = (onTime == true) -- Explicitly check for true, nil becomes false
+        DebugPrint("Using onTime value:", tostring(onTime), "-> finalOnTime:", tostring(finalOnTime))
     end
     
     DebugPrint("Final values - MapID:", finalMapID, "Level:", finalLevel, "OnTime:", finalOnTime)
@@ -537,7 +561,56 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         MPH:CaptureActiveDungeonInfo()
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         DebugPrint("CHALLENGE_MODE_COMPLETED event fired")
-        -- MIDNIGHT FIX: Reduced wait time and better handling
+        
+        -- MIDNIGHT: Calculate timing ourselves using start time and time limit
+        local wasInTime = nil
+        
+        if MPH.activeDungeonInfo and MPH.activeDungeonInfo.startTime and MPH.activeDungeonInfo.timeLimit then
+            local currentTime = time()
+            local elapsedSeconds = currentTime - MPH.activeDungeonInfo.startTime
+            local timeLimitSeconds = MPH.activeDungeonInfo.timeLimit
+            
+            DebugPrint("=== Calculating timing ===")
+            DebugPrint("Start time:", MPH.activeDungeonInfo.startTime)
+            DebugPrint("Current time:", currentTime)
+            DebugPrint("Elapsed seconds:", elapsedSeconds)
+            DebugPrint("Time limit (seconds):", timeLimitSeconds)
+            
+            -- Convert to human-readable format
+            local elapsedMinutes = math.floor(elapsedSeconds / 60)
+            local elapsedSecondsRemainder = elapsedSeconds % 60
+            local limitMinutes = math.floor(timeLimitSeconds / 60)
+            local limitSecondsRemainder = timeLimitSeconds % 60
+            
+            DebugPrint(string.format("Time taken: %d:%02d", elapsedMinutes, elapsedSecondsRemainder))
+            DebugPrint(string.format("Time limit: %d:%02d", limitMinutes, limitSecondsRemainder))
+            
+            wasInTime = (elapsedSeconds <= timeLimitSeconds)
+            
+            if wasInTime then
+                local marginSeconds = timeLimitSeconds - elapsedSeconds
+                DebugPrint(string.format("SUCCESS: Key was TIMED with %d seconds to spare!", marginSeconds))
+            else
+                local overSeconds = elapsedSeconds - timeLimitSeconds
+                DebugPrint(string.format("Key was NOT timed - over by %d seconds", overSeconds))
+            end
+            
+            DebugPrint("=== End calculation ===")
+        else
+            DebugPrint("ERROR: Cannot calculate timing - missing data:")
+            DebugPrint("  activeDungeonInfo exists:", tostring(MPH.activeDungeonInfo ~= nil))
+            if MPH.activeDungeonInfo then
+                DebugPrint("  startTime exists:", tostring(MPH.activeDungeonInfo.startTime ~= nil))
+                DebugPrint("  timeLimit exists:", tostring(MPH.activeDungeonInfo.timeLimit ~= nil))
+            end
+        end
+        
+        -- Store the timing result
+        if MPH.activeDungeonInfo then
+            MPH.activeDungeonInfo.wasInTime = wasInTime
+            DebugPrint("Stored wasInTime in activeDungeonInfo:", tostring(wasInTime))
+        end
+        
         C_Timer.After(0.5, function()
             MPH:OnDungeonComplete(false) -- false = normal completion
         end)
@@ -565,6 +638,7 @@ SlashCmdList["MPLUSHONOR"] = function(msg)
         print("/mph announce - Toggle party chat announcements")
         print("/mph debug - Show last payload (for debugging)")
         print("/mph debugmode - Toggle debug mode")
+        print("/mph debugtooltips - Toggle tooltip debug spam (keep OFF normally)")
         print("/mph test - Test dungeon completion (debug)")
         print("/mph complete - Force record current dungeon (use after completion)")
     elseif msg == "show" then
@@ -609,6 +683,13 @@ SlashCmdList["MPLUSHONOR"] = function(msg)
         MPlusHonorDB.settings.debug = not MPlusHonorDB.settings.debug
         print(string.format("|cff00ff00MPlusHonor:|r Debug mode %s", 
             MPlusHonorDB.settings.debug and "|cff00ff00enabled|r" or "|cffff0000disabled|r"))
+    elseif msg == "debugtooltips" then
+        MPlusHonorDB.settings.debugTooltips = not MPlusHonorDB.settings.debugTooltips
+        print(string.format("|cff00ff00MPlusHonor:|r Tooltip debug spam %s", 
+            MPlusHonorDB.settings.debugTooltips and "|cff00ff00enabled|r" or "|cffff0000disabled|r"))
+        if MPlusHonorDB.settings.debugTooltips then
+            print("|cffffcc00Warning:|r This will spam your chat when hovering over players. Use /mph debugtooltips to turn off.")
+        end
     elseif msg == "test" then
         print("|cff00ff00MPlusHonor:|r Testing dungeon completion...")
         DebugPrint("Manual test triggered")
