@@ -1,4 +1,4 @@
-## Interface: 120001, 110207, 120000
+## Interface: 120000
 ## Title: MPlusHonor
 ## Notes: Rate your Mythic+ group members after dungeon completion
 ## Author: Kaelagon
@@ -10,3 +10,4 @@
 Data.lua
 Core.lua
 UI.lua
+
